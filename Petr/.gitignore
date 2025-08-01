@@ -1,1 +1,11 @@
 WEEK_7/images
+# Ignore all large models and outputs
+*.pth
+*.ckpt
+*.zip
+*.npz
+*.tar.gz
+checkpoints/
+outputs/
+data/
+
