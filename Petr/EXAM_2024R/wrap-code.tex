@@ -1,0 +1,31 @@
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{float}
+\usepackage[section]{placeins}
+\usepackage{caption}
+\captionsetup[figure]{position=bottom}
+\let\Oldsection\section
+\renewcommand{\section}{\FloatBarrier\Oldsection}
+
+\lstdefinestyle{mystyle}{
+  language=Python,
+  basicstyle=\ttfamily\footnotesize,
+  breaklines=true,
+  breakatwhitespace=false,
+  keepspaces=true,
+  columns=fullflexible,
+  frame=single,
+  showstringspaces=false,
+  postbreak=\mbox{\textcolor{red}{$\hookrightarrow$}\space},
+  keywordstyle=\color{blue},
+  commentstyle=\color{gray},
+  stringstyle=\color{orange},
+  numberstyle=\tiny\color{gray},
+  rulecolor=\color{black},
+  numbers=left,
+  stepnumber=1,
+  numbersep=5pt,
+  backgroundcolor=\color{white}
+}
+
+\lstset{style=mystyle}

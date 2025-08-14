@@ -347,6 +347,81 @@ class GaussianProcessRegression(object):
 
         return mu, Sigma
     
+    
+    def posterior(self):
+        r"""
+        Compute the posterior over the latent function values f at the *training* inputs X.
+
+        Returns
+        -------
+        mu : jnp.ndarray, shape (N, 1)
+            Posterior mean vector  μ = E[f | y, X].
+
+        Sigma : jnp.ndarray, shape (N, N)
+            Posterior covariance  Σ = Cov[f | y, X].
+
+        Math
+        ----
+        With prior  f ~ N(0, K)  and observation model  y = f + ε,  ε ~ N(0, σ^2 I),
+        define  C := K + σ^2 I.  Then
+        $$
+        \mu = K\,C^{-1} y, \qquad
+        \Sigma = K - K\,C^{-1}K .
+        $$
+
+        Implementation details
+        ----------------------
+        • We never form C^{-1} explicitly (better numerics).  
+          Using the Cholesky factorization  C = L L^T:
+          - Solve C α = y   via two triangular solves:
+                α = L^{-T} (L^{-1} y)
+            so that  μ = K α.
+          - Use the identity  K C^{-1} K = (L^{-1} K)^T (L^{-1} K):
+                let V := L^{-1} K, then  Σ = K - V^T V.
+
+        Shapes
+        ------
+        X : (N, D) stored on the instance
+        y : (N, 1) stored on the instance
+        K, C, L : (N, N)
+        α : (N, 1)
+        V : (N, N)
+        μ : (N, 1)
+        Σ : (N, N)
+        """
+        # Kernel on training inputs
+        K = self.kernel.contruct_kernel(
+            self.X, self.X,
+            kappa=self.kappa,
+            lengthscale=self.lengthscale,
+            jitter=self.jitter,     # small diagonal “jitter” for numerical stability
+        )
+
+        # Observation covariance: C = K + σ^2 I  (SPD ⇒ Cholesky exists)
+        C = K + (self.sigma ** 2) * jnp.eye(self.N)
+
+        # Cholesky factor: C = L L^T  with L lower-triangular
+        L = jnp.linalg.cholesky(C)
+
+        # Solve C α = y  via two triangular solves:
+        # 1) solve L z = y  → z = L^{-1} y
+        # 2) solve L^T α = z → α = L^{-T} z
+        z = jnp.linalg.solve(L, self.y)          # (N, 1)
+        alpha = jnp.linalg.solve(L.T, z)         # (N, 1)
+
+        # Posterior mean: μ = K α
+        mu = K @ alpha                            # (N, 1)
+
+        # Posterior covariance without forming C^{-1} explicitly:
+        # V := L^{-1} K  →  Σ = K - V^T V
+        V = jnp.linalg.solve(L, K)               # (N, N)
+        Sigma = K - (V.T @ V)                    # (N, N)
+
+        # Sanity checks (catch shape mistakes early during development)
+        assert mu.shape == (self.N, 1),  f"mu has shape {mu.shape}, expected ({self.N}, 1)"
+        assert Sigma.shape == (self.N, self.N), f"Sigma has shape {Sigma.shape}, expected ({self.N}, {self.N})"
+
+        return mu, Sigma
     def log_marginal_likelihood(self, kappa, lengthscale, sigma):
         """ 
             evaluate the log marginal likelihood p(y) given the hyperparaemters 
@@ -381,8 +456,10 @@ class GaussianProcessRegression(object):
         ##############################################
         
             
-    def prior_predictive_f_star(self, Xstar):
+    def prior_predictive_f_star(self, X):
             """
+            !!! TO THIS FUNCTION YOU NEED TO PASS X (THE TRAINING SET!!!
+            
             Computes the prior predictive distribution for f^* at the test points Xstar.
 
             Arguments:
@@ -397,13 +474,15 @@ class GaussianProcessRegression(object):
                 - Prior covariance: Sigma0 = K(Xstar, Xstar)
                 - Shapes: mu0.shape = (P, 1), Sigma0.shape = (P, P)
             """
-            K_star = self.kernel.contruct_kernel(Xstar, Xstar, self.kappa, self.lengthscale)
-            mu0 = jnp.zeros((len(Xstar), 1))
+            K_star = self.kernel.contruct_kernel(X, X, self.kappa, self.lengthscale)
+            mu0 = jnp.zeros((len(X), 1))
             Sigma0 = K_star 
             return mu0, Sigma0
 
-    def prior_predictive_y_star(self, Xstar):
+    def prior_predictive_y_star(self, X):
             """
+            !!! TO THIS FUNCTION YOU NEED TO PASS X (THE TRAINING SET!!!
+            
             Computes the prior predictive distribution for y^* at the test points Xstar,
             including observation noise.
 
@@ -420,9 +499,9 @@ class GaussianProcessRegression(object):
                 - Shapes: mu0.shape = (P, 1), Sigma0.shape = (P, P)
                 - Equation: y^* ~ N(0, K(Xstar, Xstar) + sigma^2 * I)
             """
-            K_star = self.kernel.contruct_kernel(Xstar, Xstar, self.kappa, self.lengthscale)
-            mu0 = jnp.zeros((len(Xstar), 1))
-            Sigma0 = K_star + self.sigma**2 * jnp.identity(len(Xstar))
+            K_star = self.kernel.contruct_kernel(X, X, self.kappa, self.lengthscale)
+            mu0 = jnp.zeros((len(X), 1))
+            Sigma0 = K_star + self.sigma**2 * jnp.identity(len(X))
             return mu0, Sigma0
 
 def optimize_hyperparameters(gp, theta_init):

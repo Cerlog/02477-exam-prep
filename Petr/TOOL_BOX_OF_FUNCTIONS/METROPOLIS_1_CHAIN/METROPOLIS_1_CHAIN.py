@@ -178,3 +178,54 @@ def metropolis(log_target, num_params, tau, num_iter, theta_init=None, seed=0):
     )
 
     return thetas
+
+
+
+#With stacking (recommended):
+#burn = 1000
+#
+#S = jnp.stack([theta1, theta2], axis=0)      # (chains=2, iters, params=2)
+#S = S[:, burn:, :]                            # drop burn-in
+#
+#est = jnp.mean((S[:, :, 0] - S[:, :, 1])**2)  # -> ~6.48
+#print(est)
+
+
+#If you keep concatenation:
+#burn = 1000
+#
+#z = jnp.concatenate([theta1[burn:, 0], theta2[burn:, 0]])
+#x = jnp.concatenate([theta1[burn:, 1], theta2[burn:, 1]])
+#
+#est = jnp.mean((z - x)**2)                    # -> ~6.48
+#print(est)
+
+
+
+
+# plot resutls
+#fig, axes = plt.subplots(1, 2, figsize=(20, 5))
+#axes[0].plot(z1)
+#axes[0].plot(z2)
+#
+#axes[1].plot(x1)
+#axes[1].plot(x2)
+
+
+
+#import matplotlib.pyplot as plt
+#import jax.numpy as jnp
+#
+#burn = 1000  # drop burn-in
+#S = jnp.stack([theta1, theta2], axis=0)          # (chains=2, iters, params=2)
+#z = S[:, burn:, 0]                               # (2, T')
+#x = S[:, burn:, 1]                               # (2, T')
+#
+## --- traces ---
+#fig, ax = plt.subplots(1, 2, figsize=(12, 3))
+#ax[0].plot(z[0], label="chain 1"); ax[0].plot(z[1], label="chain 2")
+#ax[0].set(title="Trace of $z$", xlabel="iteration", ylabel="$z$"); ax[0].legend()
+#
+#ax[1].plot(x[0], label="chain 1"); ax[1].plot(x[1], label="chain 2")
+#ax[1].set(title="Trace of $x$", xlabel="iteration", ylabel="$x$"); ax[1].legend()
+#plt.tight_layout(); plt.show()

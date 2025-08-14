@@ -256,7 +256,7 @@ class BayesianLinearRegression(object):
         >>> print(f"Posterior mean: {m.ravel()}")
         >>> print(f"Posterior uncertainty (diagonal of S): {jnp.diag(S)}")
         """
-        #############################################
+        #################################alpha############
         # Bayesian Linear Regression Posterior Computation
         #############################################
         
@@ -390,3 +390,70 @@ class BayesianLinearRegression(object):
             MAP estimate of weights (posterior mean)
         """
         return self.m
+    
+    
+"""
+Bayesian Linear Regression Visualization with Progressive Data Updates
+
+This script demonstrates how Bayesian linear regression evolves as more training data
+is observed. It shows the progression from prior beliefs through likelihood updates
+to posterior distributions, illustrating the fundamental principles of Bayesian learning.
+
+Mathematical Foundation:
+- Prior: p(w) = N(w | 0, α⁻¹I) where α controls prior precision
+- Likelihood: p(y|w,X) = N(y | Φw, β⁻¹I) where β controls noise precision  
+- Posterior: p(w|y,X) = N(w | μₙ, Σₙ) (analytically tractable for linear models)
+
+Key Equations:
+- Posterior mean: μₙ = βΣₙΦᵀy
+- Posterior covariance: Σₙ = (αI + βΦᵀΦ)⁻¹
+- Predictive mean: μ(x*) = μₙᵀφ(x*)
+- Predictive variance: σ²(x*) = φ(x*)ᵀΣₙφ(x*) + β⁻¹
+"""
+
+def plot_predictions(ax, x, mu, var, color='r', visibility=0.5, label=None):
+    """
+    Visualize predictive distributions with mean and confidence intervals.
+    
+    This function plots the predictive mean along with 95% confidence intervals,
+    providing a visual representation of model uncertainty.
+    
+    Mathematical basis:
+    - Confidence interval: μ ± 1.96σ (covers ~95% of probability mass)
+    - For Gaussian distributions: P(μ - 1.96σ ≤ X ≤ μ + 1.96σ) ≈ 0.95
+    
+    Args:
+        ax: Matplotlib axis object for plotting
+        x: Input locations where predictions are made
+           Shape: (n_pred, 1) - prediction points
+        mu: Predictive mean at each input location  
+            Shape: (n_pred, 1) - E[f(x*)] or E[y*]
+        var: Predictive variance at each input location
+             Shape: (n_pred, 1) - Var[f(x*)] or Var[y*]
+        color: Color for the prediction plots
+        visibility: Transparency level for confidence bands (0-1)
+        label: Legend label for the prediction
+    
+    Visual elements:
+    - Solid line: Predictive mean μ(x)
+    - Dashed lines: Confidence bounds μ(x) ± 1.96σ(x)
+    - Shaded area: Uncertainty region between bounds
+    """
+    # Calculate 95% confidence bounds using standard normal quantiles
+    # 1.96 is the 97.5th percentile of standard normal (two-tailed 95% CI)
+    lower = mu - 1.96 * jnp.sqrt(var)  # Lower confidence bound
+    upper = mu + 1.96 * jnp.sqrt(var)  # Upper confidence bound
+    
+    # Plot predictive mean as solid line
+    ax.plot(x, mu, color=color, label=label)
+    
+    # Plot confidence bounds as dashed lines
+    ax.plot(x, lower, color=color, linewidth=2, linestyle='--')
+    ax.plot(x, upper, color=color, linewidth=2, linestyle='--')
+    
+    # Fill area between bounds to show uncertainty region
+    ax.fill_between(x.ravel(), lower.ravel(), upper.ravel(), 
+                   color=color, alpha=visibility)
+    
+    # Emphasize the mean with a thicker line
+    ax.plot(x, mu, '-', color=color, label="", linewidth=2.5)
